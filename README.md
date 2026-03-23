@@ -1,21 +1,77 @@
 # Influqa API Demo
 
-A demonstration of the **[Influqa](https://www.influqa.com)** Influencer Marketing Platform API, built with [FastAPI](https://fastapi.tiangolo.com/). This project showcases how to interact with the Influqa platform to discover verified creators, manage campaigns, and analyse performance.
+A demonstration of the **[Influqa](https://www.influqa.com)** Influencer Marketing Platform API with **Role-Based Access Control (RBAC)**. This demo showcases how different user types have access to different resources.
 
-## Features
+## 🎯 Key Features
 
-| Module | Endpoints | Description |
-|--------|-----------|-------------|
-| **Authentication** | `GET /auth/verify` | Validate your API key |
-| **Influencer Discovery** | `GET /influencers`, `GET /influencers/{id}` | Search & filter 50,000+ verified creators |
-| **Campaign Management** | `POST /campaigns`, `GET /campaigns`, `GET /campaigns/{id}`, `PATCH /campaigns/{id}/status`, `DELETE /campaigns/{id}` | Full campaign lifecycle |
-| **Analytics** | `GET /analytics/campaigns/{id}`, `GET /analytics/overview` | Performance metrics & ROI |
+### Role-Based Access Control
 
-## Prerequisites
+The API implements strict access control based on user type:
 
-- Python 3.10+
+| User Type | Influencers | Campaigns | Offers | Analytics |
+|-----------|-------------|-----------|--------|-----------|
+| **admin** | All | All | All | All |
+| **brand** | Partnered only | Own only | Sent only | Own campaigns |
+| **agency** | Managed only | Related | Received by managed | Related |
+| **influencer** | Own only | Hired in only | Received only | Own performance |
+| **creator** | Own only | Hired in only | Received only | Own performance |
+| **business** | Partnered only | Own only | Sent only | Own campaigns |
+| **nonprofit** | None | Own only | Sent only | Own campaigns |
+| **education** | None | Own only | Sent only | Own campaigns |
 
-## Quick Start
+### Access Rules
+
+1. **Agency users** can only see:
+   - Influencers they manage
+   - Offers received by their managed influencers
+   - Campaigns their influencers are hired in
+
+2. **Brand/Business users** can only see:
+   - Their own campaigns
+   - Influencers they work with (hired in their campaigns)
+   - Offers they sent
+
+3. **Influencer/Creator users** can only see:
+   - Their own profile
+   - Campaigns they're hired in
+   - Offers they received
+
+4. **Nonprofit/Education users** have limited access:
+   - Only their own campaigns
+   - No influencer discovery
+
+## 📋 API Endpoints
+
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/auth/verify` | Verify API key and get access summary |
+| GET | `/auth/demo-keys` | List all demo API keys |
+
+### Influencer Discovery
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/influencers` | List influencers (filtered by access) |
+| GET | `/influencers/{id}` | Get influencer details |
+| GET | `/influencers/{id}/offers` | Get influencer's offers |
+
+### Campaign Management
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/campaigns` | List campaigns (filtered by access) |
+| GET | `/campaigns/{id}` | Get campaign details |
+| POST | `/campaigns` | Create new campaign |
+| PATCH | `/campaigns/{id}/status` | Update campaign status |
+| DELETE | `/campaigns/{id}` | Delete campaign |
+
+### Analytics
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/analytics/overview` | Get overview statistics |
+| GET | `/analytics/campaigns/{id}` | Get campaign analytics |
+| GET | `/analytics/influencers/{id}` | Get influencer analytics |
+
+## 🚀 Quick Start
 
 ### 1. Clone & Install
 
@@ -25,161 +81,170 @@ cd influqa_api_demo
 pip install -r requirements.txt
 ```
 
-### 2. Start the Server
+### 2. Run the Server
 
 ```bash
 uvicorn main:app --reload
 ```
 
-The API will be available at **http://localhost:8000**.
+### 3. Explore the API
 
-### 3. Explore the Interactive Docs
+Open [http://localhost:8000/docs](http://localhost:8000/docs) for interactive Swagger UI.
 
-Open your browser and navigate to:
+## 🔑 Demo API Keys
 
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+Use these keys in the `X-API-Key` header:
 
-## Authentication
+| API Key | User Type | Access Level |
+|---------|-----------|--------------|
+| `demo_key_admin` | admin | Full platform access - all influencers, campaigns, offers |
+| `demo_key_brand` | brand | Own campaigns + partnered influencers |
+| `demo_key_agency` | agency | 3 managed influencers + their offers |
+| `demo_key_influencer` | influencer | Own profile (Emma) + received offers |
+| `demo_key_creator` | creator | Own profile (Alex) + campaigns |
+| `demo_key_business` | business | Own campaigns + partnered influencers |
+| `demo_key_nonprofit` | nonprofit | Own campaign only |
 
-All endpoints (except `/health`) require an `X-API-Key` header.
+## 📝 Example Requests
 
-Two demo API keys are provided:
+### Verify API Key
 
-| API Key | Role | Description |
-|---------|------|-------------|
-| `demo_key_brand` | Brand | Access as a brand running campaigns |
-| `demo_key_agency` | Agency | Access as a marketing agency |
-
-**Example request:**
 ```bash
-curl -H "X-API-Key: demo_key_brand" http://localhost:8000/auth/verify
+curl -X GET "http://localhost:8000/auth/verify" \
+  -H "X-API-Key: demo_key_agency"
 ```
 
-## API Reference
-
-### Influencer Discovery
-
-**Search influencers** with rich filtering:
-
-```bash
-# Find verified Instagram lifestyle influencers with 100k+ followers
-curl -H "X-API-Key: demo_key_brand" \
-  "http://localhost:8000/influencers?platform=instagram&niche=lifestyle&min_followers=100000&verified_only=true"
+Response:
+```json
+{
+  "success": true,
+  "message": "API key is valid",
+  "user": {
+    "user_id": "user_agency_001",
+    "user_type": "agency",
+    "company_name": "Creative Talent Agency"
+  },
+  "access_summary": {
+    "accessible_influencers": 3,
+    "accessible_campaigns": 2,
+    "accessible_offers": 4,
+    "permissions": ["read:managed_influencers", "read:related_campaigns", ...]
+  }
+}
 ```
 
-Available filters: `niche`, `platform`, `min_followers`, `max_followers`, `min_engagement_rate`, `location`, `verified_only`, `tags`, `page`, `per_page`.
+### List Influencers (Agency)
 
-**Get a specific influencer:**
 ```bash
-curl -H "X-API-Key: demo_key_brand" http://localhost:8000/influencers/inf_001
+curl -X GET "http://localhost:8000/influencers" \
+  -H "X-API-Key: demo_key_agency"
 ```
 
-### Campaign Management
+Returns only the 3 influencers managed by this agency.
 
-**Create a campaign:**
-```bash
-curl -X POST http://localhost:8000/campaigns \
-  -H "X-API-Key: demo_key_brand" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Summer Fashion 2025",
-    "description": "Promote our new summer collection targeting millennials",
-    "niche": "fashion",
-    "platforms": ["instagram", "tiktok"],
-    "budget": 15000,
-    "currency": "USD",
-    "influencer_requirements": {
-      "min_followers": 50000,
-      "min_engagement_rate": 3.5,
-      "required_niches": ["fashion", "lifestyle"],
-      "preferred_locations": ["US", "UK"]
-    },
-    "deliverables": [
-      {"type": "feed_post", "count": 2},
-      {"type": "story", "count": 5}
-    ],
-    "start_date": "2025-07-01",
-    "end_date": "2025-07-31"
-  }'
-```
+### List Campaigns (Brand)
 
-**Activate a campaign:**
 ```bash
-curl -X PATCH "http://localhost:8000/campaigns/{id}/status?status=active" \
+curl -X GET "http://localhost:8000/campaigns" \
   -H "X-API-Key: demo_key_brand"
 ```
 
-### Analytics
+Returns only campaigns owned by this brand.
 
-**Campaign performance:**
-```bash
-curl -H "X-API-Key: demo_key_brand" http://localhost:8000/analytics/campaigns/camp_001
-```
-
-**Account overview:**
-```bash
-curl -H "X-API-Key: demo_key_brand" http://localhost:8000/analytics/overview
-```
-
-## Example Scripts
-
-Two complete example scripts are included in the `examples/` directory:
+### Access Denied Example
 
 ```bash
-# Make sure the server is running first
-uvicorn main:app --reload &
-
-# Basic usage: verify auth, search influencers, view profiles
-python examples/basic_usage.py
-
-# Full campaign workflow: create → find influencers → activate → analyse
-python examples/campaign_workflow.py
+curl -X GET "http://localhost:8000/influencers/inf_003" \
+  -H "X-API-Key: demo_key_agency"
 ```
 
-## Running Tests
-
-```bash
-pytest tests/test_api.py -v
+Response (403 Forbidden):
+```json
+{
+  "detail": "Access denied. You don't have permission to view influencer inf_003."
+}
 ```
 
-## Project Structure
+## 🏗️ Project Structure
 
 ```
 influqa_api_demo/
 ├── main.py              # FastAPI application entry point
-├── models.py            # Pydantic data models
-├── auth.py              # API key authentication helper
+├── auth.py              # Authentication utilities
+├── models.py            # Pydantic models
 ├── requirements.txt     # Python dependencies
+├── README.md            # This file
+├── data/
+│   ├── __init__.py
+│   └── sample_data.py   # Mock data + access control functions
 ├── routers/
+│   ├── __init__.py
 │   ├── auth.py          # Authentication endpoints
 │   ├── influencers.py   # Influencer discovery endpoints
 │   ├── campaigns.py     # Campaign management endpoints
-│   └── analytics.py     # Analytics & reporting endpoints
-├── data/
-│   └── sample_data.py   # Mock influencer, campaign & analytics data
+│   └── analytics.py     # Analytics endpoints
 ├── examples/
-│   ├── basic_usage.py   # Basic API usage example
-│   └── campaign_workflow.py  # End-to-end campaign workflow
+│   ├── basic_usage.py   # Basic API usage examples
+│   └── campaign_workflow.py  # Full campaign workflow
 └── tests/
-    └── test_api.py      # Comprehensive API tests (27 tests)
+    └── test_api.py      # Test suite
 ```
 
-## Sample Data
+## 🔒 Access Control Implementation
 
-The demo includes pre-loaded sample data:
+The access control is implemented through helper functions in `data/sample_data.py`:
 
-**Influencers (5 verified creators):**
-- Emma Johnson – Instagram Lifestyle (285k followers, 4.7% engagement)
-- Marcus Chen – YouTube Technology (512k followers, 6.2% engagement)
-- Sophia Martinez – TikTok Food (1.2M followers, 8.9% engagement)
-- Alex Thompson – Instagram Fitness (98k followers, 5.8% engagement)
-- Nina Patel – Instagram Beauty (420k followers, 5.1% engagement)
+```python
+def get_user_accessible_influencer_ids(user: dict) -> list:
+    """
+    Get list of influencer IDs the user can access.
+    
+    - admin: All influencers
+    - agency: Influencers they manage
+    - brand/business: Influencers they work with
+    - influencer/creator: Only themselves
+    - nonprofit/education: Empty (no access)
+    """
+```
 
-**Campaigns (2 pre-loaded):**
-- `camp_001` – Summer Fashion Collection (active)
-- `camp_002` – Healthy Living App Launch (completed)
+Each endpoint uses these functions to filter results:
 
-## License
+```python
+@router.get("/influencers")
+async def list_influencers(user: dict = get_current_user):
+    accessible_ids = get_user_accessible_influencer_ids(user)
+    influencers = [inf for inf in SAMPLE_INFLUENCERS if inf["id"] in accessible_ids]
+    return {"data": influencers}
+```
 
-MIT
+## 🧪 Testing
+
+```bash
+# Run tests
+pytest tests/test_api.py -v
+
+# Test with different user types
+pytest tests/test_api.py -v -k "test_agency_access"
+```
+
+## 📚 Documentation
+
+- **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+
+## 🤝 Integration
+
+To integrate with the real Influqa API:
+
+1. Replace demo data with real API calls
+2. Update authentication to use real API keys
+3. Implement proper database queries
+4. Add rate limiting and caching
+
+## 📄 License
+
+MIT License - See LICENSE file for details.
+
+---
+
+Built with ❤️ by the [Influqa](https://www.influqa.com) team

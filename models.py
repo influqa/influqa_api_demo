@@ -1,39 +1,53 @@
 """
-Pydantic models for the Influqa API demo.
+Pydantic models for API request/response validation.
 """
 
-from __future__ import annotations
-from datetime import date, datetime
-from typing import Any, Optional
 from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
+from datetime import date
 
 
-# ── Auth ─────────────────────────────────────────────────────────────────────
+# ============== User Types ==============
 
-class AuthResponse(BaseModel):
+class UserBase(BaseModel):
+    """Base user information"""
     user_id: str
-    role: str
-    company_name: str
-    email: str
-    message: str = "Authenticated successfully"
+    user_type: str = Field(..., description="User type: brand, agency, influencer, creator, business, nonprofit, education, admin")
 
 
-# ── Influencers ───────────────────────────────────────────────────────────────
+class UserAccess(BaseModel):
+    """User access summary"""
+    user_type: str
+    accessible_influencers: int
+    accessible_campaigns: int
+    accessible_offers: int
+    permissions: List[str]
 
-class AudienceDemographics(BaseModel):
-    age_18_24: float
-    age_25_34: float
-    age_35_44: float
-    age_45_plus: float
-    female: float
-    male: float
-    top_countries: list[str]
+
+# ============== Influencer Models ==============
+
+class InfluencerList(BaseModel):
+    """List of influencers response"""
+    success: bool
+    count: int
+    user_type: str
+    access_level: str
+    data: List[Dict[str, Any]]
+
+
+class InfluencerDetail(BaseModel):
+    """Single influencer detail response"""
+    success: bool
+    user_type: str
+    data: Dict[str, Any]
 
 
 class Influencer(BaseModel):
+    """Influencer profile"""
     id: str
     username: str
     full_name: str
+    email: Optional[str] = None
     platform: str
     niche: str
     follower_count: int
@@ -43,127 +57,156 @@ class Influencer(BaseModel):
     location: str
     language: str
     profile_url: str
-    avatar_url: str
+    avatar_url: Optional[str] = None
     verified: bool
-    tags: list[str]
-    rate_per_post: float
-    currency: str
-    audience_demographics: AudienceDemographics
+    tags: List[str]
+    rate_per_post: int
+    currency: str = "USD"
+    agency_id: Optional[str] = None
 
 
-class InfluencerListResponse(BaseModel):
-    influencers: list[Influencer]
-    total: int
-    page: int
-    per_page: int
-    pages: int
+# ============== Campaign Models ==============
 
-
-class InfluencerSearchParams(BaseModel):
-    niche: Optional[str] = None
-    platform: Optional[str] = None
-    min_followers: Optional[int] = None
-    max_followers: Optional[int] = None
-    min_engagement_rate: Optional[float] = None
-    location: Optional[str] = None
-    verified_only: bool = False
-    tags: Optional[list[str]] = None
-    page: int = Field(default=1, ge=1)
-    per_page: int = Field(default=10, ge=1, le=100)
-
-
-# ── Campaigns ─────────────────────────────────────────────────────────────────
-
-class Deliverable(BaseModel):
-    type: str
+class CampaignList(BaseModel):
+    """List of campaigns response"""
+    success: bool
     count: int
-
-
-class InfluencerRequirements(BaseModel):
-    min_followers: int = 10000
-    max_followers: Optional[int] = None
-    min_engagement_rate: float = 2.0
-    required_niches: list[str] = []
-    preferred_locations: list[str] = []
+    user_type: str
+    access_level: str
+    data: List[Dict[str, Any]]
 
 
 class Campaign(BaseModel):
+    """Campaign details"""
     id: str
     brand_id: str
     title: str
     description: str
     status: str
     niche: str
-    platforms: list[str]
-    budget: float
-    currency: str
-    influencer_requirements: InfluencerRequirements
-    deliverables: list[Deliverable]
+    platforms: List[str]
+    budget: int
+    currency: str = "USD"
+    influencer_requirements: Dict[str, Any]
+    deliverables: List[Dict[str, Any]]
+    hired_influencer_ids: List[str] = []
     start_date: str
     end_date: str
     created_at: str
     updated_at: str
-    applications_count: int
-    hired_count: int
 
 
-class CampaignCreateRequest(BaseModel):
-    title: str = Field(..., min_length=3, max_length=200)
-    description: str = Field(..., min_length=10)
+class Deliverable(BaseModel):
+    """Campaign deliverable"""
+    type: str = Field(..., description="Type: feed_post, story, reel, video_review")
+    count: int
+    description: Optional[str] = None
+
+
+class InfluencerRequirements(BaseModel):
+    """Campaign influencer requirements"""
+    min_followers: Optional[int] = None
+    max_followers: Optional[int] = None
+    min_engagement_rate: Optional[float] = None
+    required_niches: List[str] = []
+    preferred_locations: List[str] = []
+
+
+class CampaignCreate(BaseModel):
+    """Create campaign request"""
+    title: str
+    description: str
     niche: str
-    platforms: list[str]
-    budget: float = Field(..., gt=0)
-    currency: str = "USD"
-    influencer_requirements: InfluencerRequirements = Field(
-        default_factory=InfluencerRequirements
-    )
-    deliverables: list[Deliverable] = []
+    platforms: List[str]
+    budget: int
+    currency: Optional[str] = "USD"
+    influencer_requirements: InfluencerRequirements
+    deliverables: List[Deliverable]
     start_date: str
     end_date: str
 
 
-class CampaignListResponse(BaseModel):
-    campaigns: list[Campaign]
-    total: int
-    page: int
-    per_page: int
-    pages: int
+# ============== Offer Models ==============
 
-
-# ── Analytics ─────────────────────────────────────────────────────────────────
-
-class InfluencerPerformance(BaseModel):
+class Offer(BaseModel):
+    """Offer details"""
+    id: str
+    campaign_id: str
+    brand_id: str
     influencer_id: str
-    reach: int
-    impressions: int
-    engagements: int
-    clicks: int
-    conversions: int
+    status: str = Field(..., description="Status: pending, accepted, declined, completed")
+    offer_type: str = Field(..., description="Type: paid, barter, affiliate")
+    amount: int
+    currency: str = "USD"
+    deliverables: List[Dict[str, Any]]
+    message: Optional[str] = None
+    created_at: str
+    updated_at: str
+
+
+class OfferCreate(BaseModel):
+    """Create offer request"""
+    campaign_id: str
+    influencer_id: str
+    offer_type: str = "paid"
+    amount: int
+    currency: Optional[str] = "USD"
+    deliverables: List[Deliverable]
+    message: Optional[str] = None
+
+
+# ============== Analytics Models ==============
+
+class AnalyticsOverview(BaseModel):
+    """Analytics overview response"""
+    success: bool
+    data: Dict[str, Any]
 
 
 class CampaignAnalytics(BaseModel):
-    campaign_id: str
-    total_reach: int
-    total_impressions: int
-    total_engagements: int
-    engagement_rate: float
-    total_clicks: int
-    click_through_rate: float
-    total_conversions: int
-    conversion_rate: float
-    cost_per_click: float
-    cost_per_conversion: float
-    roi: float
-    influencer_performance: list[InfluencerPerformance]
+    """Campaign analytics response"""
+    success: bool
+    user_type: str
+    campaign: Dict[str, Any]
+    data: Dict[str, Any]
 
 
-# ── Common ────────────────────────────────────────────────────────────────────
+class InfluencerAnalytics(BaseModel):
+    """Influencer analytics response"""
+    success: bool
+    user_type: str
+    influencer: Dict[str, Any]
+    data: Dict[str, Any]
+
+
+# ============== Auth Models ==============
+
+class AuthVerifyResponse(BaseModel):
+    """Auth verification response"""
+    success: bool
+    message: str
+    user: Dict[str, Any]
+    access_summary: Dict[str, Any]
+
+
+class DemoKey(BaseModel):
+    """Demo API key info"""
+    api_key: str
+    user_type: str
+    description: str
+    access_level: str
+
+
+class DemoKeysResponse(BaseModel):
+    """List of demo keys response"""
+    success: bool
+    message: str
+    demo_keys: List[DemoKey]
+
+
+# ============== Error Models ==============
 
 class ErrorResponse(BaseModel):
-    error: str
-    detail: Optional[str] = None
-
-
-class SuccessResponse(BaseModel):
-    message: str
-    data: Optional[Any] = None
+    """Error response"""
+    detail: str
+    error_code: Optional[str] = None

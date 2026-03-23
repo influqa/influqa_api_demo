@@ -1,107 +1,186 @@
-"""Influencer discovery router for the Influqa API demo."""
+"""
+Influencer discovery endpoints with role-based access control.
 
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from models import Influencer, InfluencerListResponse
+Access by user type:
+- admin: Full access to all influencers
+- agency: Access to influencers they manage only
+- brand/business: Access to influencers they work with (hired in their campaigns)
+- influencer/creator: Access to their own profile only
+- nonprofit/education: No influencer access
+"""
+
+from fastapi import APIRouter, HTTPException, Query
+from typing import Optional, List
+from data.sample_data import (
+    SAMPLE_INFLUENCERS, 
+    get_user_accessible_influencer_ids,
+    get_user_accessible_campaign_ids,
+    SAMPLE_CAMPAIGNS,
+    SAMPLE_OFFERS,
+)
 from auth import get_current_user
-from data.sample_data import SAMPLE_INFLUENCERS
-import math
+from models import Influencer, InfluencerList, InfluencerDetail
 
 router = APIRouter(prefix="/influencers", tags=["Influencer Discovery"])
 
 
-def _filter_influencers(
-    influencers: list[dict],
-    niche: Optional[str],
-    platform: Optional[str],
-    min_followers: Optional[int],
-    max_followers: Optional[int],
-    min_engagement_rate: Optional[float],
-    location: Optional[str],
-    verified_only: bool,
-    tags: Optional[str],
-) -> list[dict]:
-    results = influencers
+@router.get("", response_model=InfluencerList)
+async def list_influencers(
+    niche: Optional[str] = Query(None, description="Filter by niche"),
+    platform: Optional[str] = Query(None, description="Filter by platform (instagram, youtube, tiktok)"),
+    min_followers: Optional[int] = Query(None, description="Minimum follower count"),
+    max_followers: Optional[int] = Query(None, description="Maximum follower count"),
+    min_engagement: Optional[float] = Query(None, description="Minimum engagement rate"),
+    location: Optional[str] = Query(None, description="Filter by location"),
+    user: dict = get_current_user,
+):
+    """
+    List influencers based on user access level.
+    
+    **Access Control:**
+    - **admin**: See all influencers
+    - **agency**: See only influencers you manage
+    - **brand/business**: See influencers you work with
+    - **influencer/creator**: See only your own profile
+    - **nonprofit/education**: No access (returns empty list)
+    """
+    accessible_ids = get_user_accessible_influencer_ids(user)
+    
+    # Filter influencers by access level
+    influencers = [inf for inf in SAMPLE_INFLUENCERS if inf["id"] in accessible_ids]
+    
+    # Apply additional filters
     if niche:
-        results = [i for i in results if i["niche"].lower() == niche.lower()]
+        influencers = [inf for inf in influencers if niche.lower() in [t.lower() for t in inf.get("tags", [])]]
     if platform:
-        results = [i for i in results if i["platform"].lower() == platform.lower()]
-    if min_followers is not None:
-        results = [i for i in results if i["follower_count"] >= min_followers]
-    if max_followers is not None:
-        results = [i for i in results if i["follower_count"] <= max_followers]
-    if min_engagement_rate is not None:
-        results = [i for i in results if i["engagement_rate"] >= min_engagement_rate]
+        influencers = [inf for inf in influencers if inf["platform"].lower() == platform.lower()]
+    if min_followers:
+        influencers = [inf for inf in influencers if inf["follower_count"] >= min_followers]
+    if max_followers:
+        influencers = [inf for inf in influencers if inf["follower_count"] <= max_followers]
+    if min_engagement:
+        influencers = [inf for inf in influencers if inf["engagement_rate"] >= min_engagement]
     if location:
-        results = [
-            i for i in results if location.lower() in i["location"].lower()
-        ]
-    if verified_only:
-        results = [i for i in results if i["verified"]]
-    if tags:
-        tag_list = [t.strip().lower() for t in tags.split(",") if t.strip()]
-        results = [
-            i
-            for i in results
-            if any(t in [tag.lower() for tag in i["tags"]] for t in tag_list)
-        ]
-    return results
+        influencers = [inf for inf in influencers if location.lower() in inf["location"].lower()]
+    
+    return {
+        "success": True,
+        "count": len(influencers),
+        "user_type": user["user_type"],
+        "access_level": "full" if user["user_type"] == "admin" else "limited",
+        "data": influencers,
+    }
 
 
-@router.get(
-    "",
-    response_model=InfluencerListResponse,
-    summary="Search Influencers",
-    description=(
-        "Search and filter the Influqa database of verified creators. "
-        "Supports filtering by niche, platform, follower count, engagement rate, "
-        "location, verification status, and tags."
-    ),
-)
-def list_influencers(
-    niche: Optional[str] = Query(None, description="Filter by content niche (e.g. lifestyle, fitness, beauty)"),
-    platform: Optional[str] = Query(None, description="Filter by platform: instagram, youtube, tiktok"),
-    min_followers: Optional[int] = Query(None, ge=0, description="Minimum follower count"),
-    max_followers: Optional[int] = Query(None, ge=0, description="Maximum follower count"),
-    min_engagement_rate: Optional[float] = Query(None, ge=0, description="Minimum engagement rate (%)"),
-    location: Optional[str] = Query(None, description="Filter by location (city or country)"),
-    verified_only: bool = Query(False, description="Return only Influqa-verified creators"),
-    tags: Optional[str] = Query(None, description="Comma-separated list of tags to filter by"),
-    page: int = Query(1, ge=1, description="Page number"),
-    per_page: int = Query(10, ge=1, le=100, description="Results per page"),
-    current_user: dict = Depends(get_current_user),
-):
-    filtered = _filter_influencers(
-        SAMPLE_INFLUENCERS, niche, platform, min_followers, max_followers,
-        min_engagement_rate, location, verified_only, tags,
-    )
-    total = len(filtered)
-    pages = math.ceil(total / per_page) if total else 1
-    start = (page - 1) * per_page
-    page_items = filtered[start : start + per_page]
-    return InfluencerListResponse(
-        influencers=[Influencer(**i) for i in page_items],
-        total=total,
-        page=page,
-        per_page=per_page,
-        pages=pages,
-    )
-
-
-@router.get(
-    "/{influencer_id}",
-    response_model=Influencer,
-    summary="Get Influencer Profile",
-    description="Retrieve the full profile of a specific influencer by their ID.",
-)
-def get_influencer(
+@router.get("/{influencer_id}", response_model=InfluencerDetail)
+async def get_influencer(
     influencer_id: str,
-    current_user: dict = Depends(get_current_user),
+    user: dict = get_current_user,
 ):
-    match = next((i for i in SAMPLE_INFLUENCERS if i["id"] == influencer_id), None)
-    if not match:
+    """
+    Get detailed information about a specific influencer.
+    
+    **Access Control:** Only accessible if:
+    - You are an admin, OR
+    - You manage this influencer (agency), OR
+    - You work with this influencer (brand/business), OR
+    - This is your own profile (influencer/creator)
+    """
+    accessible_ids = get_user_accessible_influencer_ids(user)
+    
+    if influencer_id not in accessible_ids:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Influencer '{influencer_id}' not found.",
+            status_code=403,
+            detail=f"Access denied. You don't have permission to view influencer {influencer_id}.",
         )
-    return Influencer(**match)
+    
+    influencer = next((inf for inf in SAMPLE_INFLUENCERS if inf["id"] == influencer_id), None)
+    if not influencer:
+        raise HTTPException(status_code=404, detail="Influencer not found")
+    
+    # Get campaigns this influencer is part of
+    campaign_ids = get_user_accessible_campaign_ids(user)
+    influencer_campaigns = [
+        {"id": camp["id"], "title": camp["title"], "status": camp["status"]}
+        for camp in SAMPLE_CAMPAIGNS
+        if influencer_id in camp.get("hired_influencer_ids", []) and camp["id"] in campaign_ids
+    ]
+    
+    # Get offers for this influencer (if user has access)
+    accessible_offer_ids = []
+    user_type = user["user_type"]
+    if user_type == "admin":
+        accessible_offer_ids = [off["id"] for off in SAMPLE_OFFERS]
+    elif user_type == "agency" and influencer_id in user.get("managed_influencer_ids", []):
+        accessible_offer_ids = [off["id"] for off in SAMPLE_OFFERS if off["influencer_id"] == influencer_id]
+    elif user_type in ["influencer", "creator"] and user.get("user_id") == influencer_id:
+        accessible_offer_ids = [off["id"] for off in SAMPLE_OFFERS if off["influencer_id"] == influencer_id]
+    
+    influencer_offers = [
+        {
+            "id": off["id"],
+            "campaign_title": next((c["title"] for c in SAMPLE_CAMPAIGNS if c["id"] == off["campaign_id"]), "Unknown"),
+            "status": off["status"],
+            "amount": off["amount"],
+            "currency": off["currency"],
+        }
+        for off in SAMPLE_OFFERS
+        if off["id"] in accessible_offer_ids
+    ]
+    
+    return {
+        "success": True,
+        "user_type": user["user_type"],
+        "data": {
+            **influencer,
+            "campaigns": influencer_campaigns,
+            "offers": influencer_offers,
+        },
+    }
+
+
+@router.get("/{influencer_id}/offers")
+async def get_influencer_offers(
+    influencer_id: str,
+    status: Optional[str] = Query(None, description="Filter by status: pending, accepted, declined, completed"),
+    user: dict = get_current_user,
+):
+    """
+    Get offers for a specific influencer.
+    
+    **Access Control:**
+    - **admin**: See all offers for any influencer
+    - **agency**: See offers for influencers you manage
+    - **influencer/creator**: See your own offers only
+    - **Others**: No access
+    """
+    accessible_ids = get_user_accessible_influencer_ids(user)
+    
+    if influencer_id not in accessible_ids:
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied. You don't have permission to view this influencer's offers.",
+        )
+    
+    offers = [off for off in SAMPLE_OFFERS if off["influencer_id"] == influencer_id]
+    
+    if status:
+        offers = [off for off in offers if off["status"] == status.lower()]
+    
+    # Enrich with campaign info
+    enriched_offers = []
+    for offer in offers:
+        campaign = next((c for c in SAMPLE_CAMPAIGNS if c["id"] == offer["campaign_id"]), None)
+        enriched_offers.append({
+            **offer,
+            "campaign_title": campaign["title"] if campaign else "Unknown Campaign",
+            "brand_name": campaign.get("brand_id", "Unknown Brand") if campaign else "Unknown",
+        })
+    
+    return {
+        "success": True,
+        "count": len(enriched_offers),
+        "influencer_id": influencer_id,
+        "user_type": user["user_type"],
+        "data": enriched_offers,
+    }

@@ -2,14 +2,16 @@
 Influqa API Demo - FastAPI Application
 
 A demonstration of the Influqa Influencer Marketing Platform API with role-based access control.
+Based on pricing plans from https://www.influqa.com/pricing
 
-User Types and Access:
-- admin: Full access to all resources
-- brand: Own campaigns + partnered influencers + offers sent
-- agency: Managed influencers + their campaigns + offers received by them
-- influencer/creator: Own profile + campaigns hired for + offers received
-- business: Own campaigns + partnered influencers + offers sent
-- nonprofit/education: Own campaigns only (limited access)
+User Types:
+- Influencer: Can see own profile, offers received, campaigns hired for
+- Business: Can create campaigns, see partnered influencers, send offers
+- Nonprofit: Can create campaigns, limited access
+- Agency: Manages influencers, sees their campaigns and offers
+- Education: Can create campaigns, limited access
+
+VIP Tiers: Basic (FREE), SVIP ($4.99/mo), GVIP ($19.99/mo)
 """
 
 from fastapi import FastAPI
@@ -22,34 +24,37 @@ app = FastAPI(
 ## Influqa Influencer Marketing Platform API
 
 This demo showcases the Influqa API with **role-based access control**. Different user types 
-have access to different resources based on their role.
+have access to different resources based on their subscription plan.
 
-### 🔐 User Types & Access Levels
+### 👥 User Types & Access Levels
 
 | User Type | Influencers | Campaigns | Offers | Analytics |
 |-----------|-------------|-----------|--------|-----------|
-| **admin** | All | All | All | All |
-| **brand** | Partnered only | Own only | Sent only | Own campaigns |
-| **agency** | Managed only | Related | Received by managed | Related |
-| **influencer** | Own only | Hired in only | Received only | Own performance |
-| **creator** | Own only | Hired in only | Received only | Own performance |
-| **business** | Partnered only | Own only | Sent only | Own campaigns |
-| **nonprofit** | None | Own only | Sent only | Own campaigns |
-| **education** | None | Own only | Sent only | Own campaigns |
+| **Influencer** | Own only | Hired in only | Received only | Own performance |
+| **Business** | Partnered only | Own only | Sent only | Own campaigns |
+| **Agency** | Managed only | Related | Received by managed | Related |
+| **Nonprofit** | None | Own only | Sent only | Own campaigns |
+| **Education** | None | Own only | Sent only | Own campaigns |
 
-### 📝 Demo API Keys
+### 💎 VIP Tiers
+
+| Tier | Price | Features |
+|------|-------|----------|
+| **Basic** | FREE | Limited API access |
+| **SVIP** | $4.99/mo | Enhanced access |
+| **GVIP** | $19.99/mo | Full access |
+
+### 🔑 Demo API Keys
 
 Use these keys in the `X-API-Key` header:
 
-| API Key | User Type | Description |
-|---------|-----------|-------------|
-| `demo_key_admin` | admin | Full platform access |
-| `demo_key_brand` | brand | Brand account with campaigns |
-| `demo_key_agency` | agency | Agency managing 3 influencers |
-| `demo_key_influencer` | influencer | Influencer profile (Emma) |
-| `demo_key_creator` | creator | Creator profile (Alex) |
-| `demo_key_business` | business | Business account |
-| `demo_key_nonprofit` | nonprofit | Nonprofit organization |
+| API Key | User Type | VIP Tier |
+|---------|-----------|----------|
+| `demo_key_influencer` | Influencer | SVIP |
+| `demo_key_business` | Business | GVIP |
+| `demo_key_agency` | Agency | GVIP |
+| `demo_key_nonprofit` | Nonprofit | SVIP |
+| `demo_key_education` | Education | Basic |
 
 ### 🚀 Quick Start
 
@@ -92,39 +97,27 @@ async def root():
         "name": "Influqa API Demo",
         "version": "2.0.0",
         "description": "Influencer Marketing Platform API with Role-Based Access Control",
+        "pricing": "https://www.influqa.com/pricing",
         "docs": "/docs",
         "redoc": "/redoc",
-        "endpoints": {
-            "auth": {
-                "verify": "/auth/verify",
-                "demo_keys": "/auth/demo-keys",
-            },
-            "influencers": {
-                "list": "/influencers",
-                "get": "/influencers/{influencer_id}",
-                "offers": "/influencers/{influencer_id}/offers",
-            },
-            "campaigns": {
-                "list": "/campaigns",
-                "get": "/campaigns/{campaign_id}",
-                "create": "/campaigns (POST)",
-                "update_status": "/campaigns/{campaign_id}/status (PATCH)",
-                "delete": "/campaigns/{campaign_id} (DELETE)",
-            },
-            "analytics": {
-                "overview": "/analytics/overview",
-                "campaign": "/analytics/campaigns/{campaign_id}",
-                "influencer": "/analytics/influencers/{influencer_id}",
-            },
+        "user_types": {
+            "influencer": "Creator profile - receive offers, join campaigns",
+            "business": "Create campaigns, work with influencers",
+            "agency": "Manage multiple influencers",
+            "nonprofit": "Organization campaigns (limited)",
+            "education": "Educational campaigns (limited)",
+        },
+        "vip_tiers": {
+            "basic": "FREE - Limited access",
+            "svip": "$4.99/mo - Enhanced access",
+            "gvip": "$19.99/mo - Full access",
         },
         "demo_keys": {
-            "admin": "demo_key_admin",
-            "brand": "demo_key_brand",
-            "agency": "demo_key_agency",
             "influencer": "demo_key_influencer",
-            "creator": "demo_key_creator",
             "business": "demo_key_business",
+            "agency": "demo_key_agency",
             "nonprofit": "demo_key_nonprofit",
+            "education": "demo_key_education",
         },
     }
 

@@ -22,17 +22,16 @@ async def verify_api_key(user: dict = get_current_user):
     
     **Returns:**
     - User ID and type
+    - VIP tier
     - Access level summary
     - Number of accessible resources
     
     **Demo API Keys:**
-    - `demo_key_brand` - Brand account (campaigns + partnered influencers)
-    - `demo_key_agency` - Agency account (managed influencers + their offers)
-    - `demo_key_influencer` - Influencer account (own profile + received offers)
-    - `demo_key_creator` - Creator account (own profile + campaigns)
-    - `demo_key_business` - Business account (campaigns + partnered influencers)
-    - `demo_key_nonprofit` - Nonprofit account (limited access)
-    - `demo_key_admin` - Admin account (full access to all)
+    - `demo_key_influencer` - Influencer account (SVIP)
+    - `demo_key_business` - Business account (GVIP)
+    - `demo_key_agency` - Agency account (GVIP)
+    - `demo_key_nonprofit` - Nonprofit account (SVIP)
+    - `demo_key_education` - Education account (Basic)
     """
     # Get access summary
     accessible_influencers = get_user_accessible_influencer_ids(user)
@@ -45,6 +44,7 @@ async def verify_api_key(user: dict = get_current_user):
         "user": {
             "user_id": user["user_id"],
             "user_type": user["user_type"],
+            "vip_tier": user.get("vip_tier", "basic"),
             "email": user.get("email"),
             "company_name": user.get("company_name"),
             "organization_name": user.get("organization_name"),
@@ -63,28 +63,8 @@ async def verify_api_key(user: dict = get_current_user):
 def get_permissions_for_user_type(user_type: str) -> list:
     """Get list of permissions for a user type."""
     permissions = {
-        "admin": [
-            "read:all_influencers",
-            "read:all_campaigns",
-            "read:all_offers",
-            "read:all_analytics",
-            "create:campaigns",
-            "update:campaigns",
-            "delete:campaigns",
-            "manage:users",
-        ],
-        "brand": [
-            "read:own_influencers",
-            "read:own_campaigns",
-            "read:own_offers",
-            "read:own_analytics",
-            "create:campaigns",
-            "update:own_campaigns",
-            "delete:own_campaigns",
-            "send:offers",
-        ],
         "business": [
-            "read:own_influencers",
+            "read:partnered_influencers",
             "read:own_campaigns",
             "read:own_offers",
             "read:own_analytics",
@@ -101,15 +81,6 @@ def get_permissions_for_user_type(user_type: str) -> list:
             "manage:influencer_profiles",
         ],
         "influencer": [
-            "read:own_profile",
-            "read:own_campaigns",
-            "read:own_offers",
-            "read:own_analytics",
-            "update:own_profile",
-            "accept:offers",
-            "decline:offers",
-        ],
-        "creator": [
             "read:own_profile",
             "read:own_campaigns",
             "read:own_offers",
@@ -152,46 +123,39 @@ async def list_demo_keys():
         "message": "Use these API keys in the X-API-Key header",
         "demo_keys": [
             {
-                "api_key": "demo_key_admin",
-                "user_type": "admin",
-                "description": "Full access to all resources",
-                "access_level": "Full platform access - can see all influencers, campaigns, offers, and analytics",
-            },
-            {
-                "api_key": "demo_key_brand",
-                "user_type": "brand",
-                "description": "Brand account - can create campaigns and work with influencers",
-                "access_level": "Own campaigns + influencers they work with + offers sent",
-            },
-            {
-                "api_key": "demo_key_agency",
-                "user_type": "agency",
-                "description": "Agency account - manages multiple influencers",
-                "access_level": "Managed influencers (3) + their campaigns + offers received by them",
-            },
-            {
                 "api_key": "demo_key_influencer",
                 "user_type": "influencer",
+                "vip_tier": "svip",
                 "description": "Influencer account - creator profile",
-                "access_level": "Own profile + campaigns hired for + offers received",
-            },
-            {
-                "api_key": "demo_key_creator",
-                "user_type": "creator",
-                "description": "Creator account - similar to influencer",
                 "access_level": "Own profile + campaigns hired for + offers received",
             },
             {
                 "api_key": "demo_key_business",
                 "user_type": "business",
-                "description": "Business account - similar to brand",
+                "vip_tier": "gvip",
+                "description": "Business account - create campaigns",
                 "access_level": "Own campaigns + partnered influencers + offers sent",
+            },
+            {
+                "api_key": "demo_key_agency",
+                "user_type": "agency",
+                "vip_tier": "gvip",
+                "description": "Agency account - manages influencers",
+                "access_level": "Managed influencers (3) + their campaigns + offers received by them",
             },
             {
                 "api_key": "demo_key_nonprofit",
                 "user_type": "nonprofit",
+                "vip_tier": "svip",
                 "description": "Nonprofit organization account",
-                "access_level": "Own campaigns only (limited access)",
+                "access_level": "Own campaigns only",
+            },
+            {
+                "api_key": "demo_key_education",
+                "user_type": "education",
+                "vip_tier": "basic",
+                "description": "Education organization account",
+                "access_level": "Own campaigns only",
             },
         ],
     }

@@ -2,96 +2,84 @@
 Sample data for the Influqa API demo.
 This module contains mock data representing users, influencers, campaigns, offers, and analytics.
 
-User Types and Access:
-- brand: Can see their own campaigns, influencers they work with, offers they sent
-- agency: Can see influencers they manage, offers from managed influencers
-- influencer/creator: Can see offers they received, campaigns they're part of
-- business: Similar to brand - campaigns and partnered influencers
-- nonprofit: Limited access - campaigns they created
-- education: Limited access - campaigns they created  
-- admin: Full access to all data
+User Types (from https://www.influqa.com/pricing):
+- Influencer: Can see offers they received, campaigns they're part of
+- Business: Can create campaigns, see influencers they work with
+- Nonprofit: Limited access - own campaigns only
+- Agency: Manages influencers, sees their offers and campaigns
+- Education: Limited access - own campaigns only
+
+VIP Tiers: Basic (FREE), SVIP ($4.99/mo), GVIP ($19.99/mo)
 """
 
 from datetime import date, timedelta
 
-# User types available on the platform
-USER_TYPES = ["brand", "agency", "influencer", "creator", "business", "nonprofit", "education", "admin"]
+# User types available on the platform (from pricing page)
+USER_TYPES = ["influencer", "business", "nonprofit", "agency", "education"]
+
+# VIP tiers available for each user type
+VIP_TIERS = ["basic", "svip", "gvip"]
 
 # Demo API keys mapped to user types
 SAMPLE_USERS = {
-    # Brand - can see their campaigns and influencers they work with
-    "demo_key_brand": {
-        "api_key": "demo_key_brand",
-        "user_id": "user_brand_001",
-        "user_type": "brand",
-        "company_name": "Fashion Forward Inc.",
-        "email": "contact@fashionforward.com",
-        "managed_influencer_ids": ["inf_001", "inf_005"],  # Influencers they work with
-        "campaign_ids": ["camp_001", "camp_002"],  # Their campaigns
-    },
-    # Agency - can see influencers they manage and offers from them
-    "demo_key_agency": {
-        "api_key": "demo_key_agency",
-        "user_id": "user_agency_001",
-        "user_type": "agency",
-        "company_name": "Creative Talent Agency",
-        "email": "bookings@creativetalent.com",
-        "managed_influencer_ids": ["inf_001", "inf_002", "inf_005"],  # Influencers they manage
-        "campaign_ids": [],  # Agencies don't own campaigns
-    },
-    # Influencer - can see offers they received and their own data
+    # Influencer - can see offers they received, their campaigns
     "demo_key_influencer": {
         "api_key": "demo_key_influencer",
         "user_id": "inf_001",  # Linked to influencer profile
         "user_type": "influencer",
+        "vip_tier": "svip",
         "username": "lifestyle_with_emma",
         "email": "emma@example.com",
         "managed_influencer_ids": [],  # Only themselves
         "campaign_ids": ["camp_001"],  # Campaigns they're part of
     },
-    # Creator - similar to influencer
-    "demo_key_creator": {
-        "api_key": "demo_key_creator",
-        "user_id": "inf_004",
-        "user_type": "creator",
-        "username": "fit_life_alex",
-        "email": "alex@example.com",
-        "managed_influencer_ids": [],
-        "campaign_ids": ["camp_002"],
-    },
-    # Business - similar to brand
+    # Business - can create campaigns, see influencers they work with
     "demo_key_business": {
         "api_key": "demo_key_business",
         "user_id": "user_business_001",
         "user_type": "business",
+        "vip_tier": "gvip",
         "company_name": "Tech Startup Co.",
         "email": "marketing@techstartup.com",
-        "managed_influencer_ids": ["inf_002"],
-        "campaign_ids": ["camp_003"],
+        "managed_influencer_ids": ["inf_001", "inf_002"],  # Influencers they work with
+        "campaign_ids": ["camp_001", "camp_002"],  # Their campaigns
     },
-    # Nonprofit - limited access
+    # Agency - manages influencers, sees their offers
+    "demo_key_agency": {
+        "api_key": "demo_key_agency",
+        "user_id": "user_agency_001",
+        "user_type": "agency",
+        "vip_tier": "gvip",
+        "company_name": "Creative Talent Agency",
+        "email": "bookings@creativetalent.com",
+        "managed_influencer_ids": ["inf_001", "inf_002", "inf_005"],  # Influencers they manage
+        "campaign_ids": [],  # Agencies don't own campaigns
+    },
+    # Nonprofit - limited access, own campaigns
     "demo_key_nonprofit": {
         "api_key": "demo_key_nonprofit",
         "user_id": "user_nonprofit_001",
         "user_type": "nonprofit",
+        "vip_tier": "svip",
         "organization_name": "Green Earth Foundation",
         "email": "awareness@greenearth.org",
         "managed_influencer_ids": [],
-        "campaign_ids": ["camp_004"],
+        "campaign_ids": ["camp_003"],  # Their campaigns
     },
-    # Admin - full access
-    "demo_key_admin": {
-        "api_key": "demo_key_admin",
-        "user_id": "user_admin_001",
-        "user_type": "admin",
-        "name": "Platform Admin",
-        "email": "admin@influqa.com",
-        "managed_influencer_ids": [],  # All access
-        "campaign_ids": [],  # All access
+    # Education - similar to nonprofit
+    "demo_key_education": {
+        "api_key": "demo_key_education",
+        "user_id": "user_education_001",
+        "user_type": "education",
+        "vip_tier": "basic",
+        "organization_name": "State University Media Dept",
+        "email": "media@stateuniversity.edu",
+        "managed_influencer_ids": [],
+        "campaign_ids": ["camp_004"],
     },
 }
 
-# Influencers - managed by agencies, discovered by brands
+# Influencers - managed by agencies, discovered by businesses
 SAMPLE_INFLUENCERS = [
     {
         "id": "inf_001",
@@ -245,11 +233,11 @@ SAMPLE_INFLUENCERS = [
     },
 ]
 
-# Campaigns - owned by brands/businesses
+# Campaigns - owned by businesses/nonprofits/education
 SAMPLE_CAMPAIGNS = [
     {
         "id": "camp_001",
-        "brand_id": "user_brand_001",
+        "brand_id": "user_business_001",
         "title": "Summer Fashion Collection 2025",
         "description": "Promote our new summer fashion line targeting millennials and Gen Z",
         "status": "active",
@@ -279,39 +267,9 @@ SAMPLE_CAMPAIGNS = [
     },
     {
         "id": "camp_002",
-        "brand_id": "user_brand_001",
-        "title": "Healthy Living App Launch",
-        "description": "Drive app downloads for our new health tracking application",
-        "status": "completed",
-        "niche": "fitness",
-        "platforms": ["instagram", "youtube"],
-        "budget": 15000,
-        "currency": "USD",
-        "influencer_requirements": {
-            "min_followers": 20000,
-            "max_followers": 200000,
-            "min_engagement_rate": 4.0,
-            "required_niches": ["fitness", "health", "wellness"],
-            "preferred_locations": ["US", "CA", "AU"],
-        },
-        "deliverables": [
-            {"type": "feed_post", "count": 1},
-            {"type": "story", "count": 3},
-            {"type": "video_review", "count": 1},
-        ],
-        "hired_influencer_ids": ["inf_004"],
-        "start_date": str(date.today() - timedelta(days=60)),
-        "end_date": str(date.today() - timedelta(days=30)),
-        "created_at": "2025-03-01T09:00:00Z",
-        "updated_at": "2025-04-30T16:00:00Z",
-        "applications_count": 28,
-        "hired_count": 1,
-    },
-    {
-        "id": "camp_003",
         "brand_id": "user_business_001",
-        "title": "Tech Product Review Campaign",
-        "description": "Product reviews for our new gadget launch",
+        "title": "Tech Product Launch",
+        "description": "Launch campaign for our new gadget",
         "status": "active",
         "niche": "technology",
         "platforms": ["youtube", "instagram"],
@@ -337,7 +295,7 @@ SAMPLE_CAMPAIGNS = [
         "hired_count": 1,
     },
     {
-        "id": "camp_004",
+        "id": "camp_003",
         "brand_id": "user_nonprofit_001",
         "title": "Environmental Awareness Campaign",
         "description": "Spread awareness about ocean conservation",
@@ -357,22 +315,50 @@ SAMPLE_CAMPAIGNS = [
             {"type": "feed_post", "count": 1},
             {"type": "story", "count": 3},
         ],
-        "hired_influencer_ids": [],
+        "hired_influencer_ids": ["inf_001"],
         "start_date": str(date.today()),
         "end_date": str(date.today() + timedelta(days=60)),
         "created_at": "2025-06-10T10:00:00Z",
         "updated_at": "2025-06-10T10:00:00Z",
         "applications_count": 5,
+        "hired_count": 1,
+    },
+    {
+        "id": "camp_004",
+        "brand_id": "user_education_001",
+        "title": "University Open Day Promotion",
+        "description": "Promote upcoming university open day event",
+        "status": "draft",
+        "niche": "education",
+        "platforms": ["instagram"],
+        "budget": 2000,
+        "currency": "USD",
+        "influencer_requirements": {
+            "min_followers": 5000,
+            "max_followers": 100000,
+            "min_engagement_rate": 4.0,
+            "required_niches": ["education", "lifestyle"],
+            "preferred_locations": ["US"],
+        },
+        "deliverables": [
+            {"type": "story", "count": 3},
+        ],
+        "hired_influencer_ids": [],
+        "start_date": str(date.today() + timedelta(days=30)),
+        "end_date": str(date.today() + timedelta(days=45)),
+        "created_at": "2025-06-20T09:00:00Z",
+        "updated_at": "2025-06-20T09:00:00Z",
+        "applications_count": 0,
         "hired_count": 0,
     },
 ]
 
-# Offers - collaborations between brands and influencers
+# Offers - collaborations between businesses and influencers
 SAMPLE_OFFERS = [
     {
         "id": "offer_001",
         "campaign_id": "camp_001",
-        "brand_id": "user_brand_001",
+        "brand_id": "user_business_001",
         "influencer_id": "inf_001",
         "status": "accepted",
         "offer_type": "paid",
@@ -390,7 +376,7 @@ SAMPLE_OFFERS = [
     {
         "id": "offer_002",
         "campaign_id": "camp_001",
-        "brand_id": "user_brand_001",
+        "brand_id": "user_business_001",
         "influencer_id": "inf_005",
         "status": "accepted",
         "offer_type": "paid",
@@ -408,25 +394,6 @@ SAMPLE_OFFERS = [
     {
         "id": "offer_003",
         "campaign_id": "camp_002",
-        "brand_id": "user_brand_001",
-        "influencer_id": "inf_004",
-        "status": "completed",
-        "offer_type": "paid",
-        "amount": 1500,
-        "currency": "USD",
-        "deliverables": [
-            {"type": "feed_post", "count": 1, "description": "App review"},
-            {"type": "video_review", "count": 1, "description": "YouTube video"},
-        ],
-        "message": "We'd love your authentic review of our health app!",
-        "created_at": "2025-03-05T11:00:00Z",
-        "updated_at": "2025-04-30T16:00:00Z",
-        "accepted_at": "2025-03-06T08:00:00Z",
-        "completed_at": "2025-04-30T16:00:00Z",
-    },
-    {
-        "id": "offer_004",
-        "campaign_id": "camp_003",
         "brand_id": "user_business_001",
         "influencer_id": "inf_002",
         "status": "pending",
@@ -441,23 +408,21 @@ SAMPLE_OFFERS = [
         "updated_at": "2025-06-16T09:00:00Z",
     },
     {
-        "id": "offer_005",
-        "campaign_id": "camp_001",
-        "brand_id": "user_brand_001",
-        "influencer_id": "inf_003",
-        "status": "declined",
+        "id": "offer_004",
+        "campaign_id": "camp_003",
+        "brand_id": "user_nonprofit_001",
+        "influencer_id": "inf_001",
+        "status": "pending",
         "offer_type": "paid",
-        "amount": 10000,
+        "amount": 1500,
         "currency": "USD",
         "deliverables": [
-            {"type": "feed_post", "count": 3},
-            {"type": "story", "count": 5},
+            {"type": "feed_post", "count": 1, "description": "Ocean conservation post"},
+            {"type": "story", "count": 3, "description": "Awareness stories"},
         ],
-        "message": "Food-focused campaign for summer",
-        "created_at": "2025-05-02T14:00:00Z",
-        "updated_at": "2025-05-05T12:00:00Z",
-        "declined_at": "2025-05-05T12:00:00Z",
-        "decline_reason": "Schedule conflict during campaign period",
+        "message": "Help us spread awareness about ocean conservation!",
+        "created_at": "2025-06-15T11:00:00Z",
+        "updated_at": "2025-06-15T11:00:00Z",
     },
 ]
 
@@ -497,30 +462,6 @@ SAMPLE_ANALYTICS = {
     },
     "camp_002": {
         "campaign_id": "camp_002",
-        "total_reach": 380000,
-        "total_impressions": 950000,
-        "total_engagements": 28500,
-        "engagement_rate": 3.0,
-        "total_clicks": 9500,
-        "click_through_rate": 1.0,
-        "total_conversions": 760,
-        "conversion_rate": 8.0,
-        "cost_per_click": 1.58,
-        "cost_per_conversion": 19.74,
-        "roi": 420,
-        "influencer_performance": [
-            {
-                "influencer_id": "inf_004",
-                "reach": 95000,
-                "impressions": 238000,
-                "engagements": 7125,
-                "clicks": 2375,
-                "conversions": 190,
-            },
-        ],
-    },
-    "camp_003": {
-        "campaign_id": "camp_003",
         "total_reach": 520000,
         "total_impressions": 1200000,
         "total_engagements": 72000,
@@ -551,24 +492,20 @@ def get_user_accessible_influencer_ids(user: dict) -> list:
     Get list of influencer IDs the user can access.
     
     Access rules:
-    - admin: All influencers
+    - business: Influencers they work with (managed_influencer_ids)
     - agency: Influencers they manage
-    - brand/business: Influencers they work with (managed_influencer_ids)
-    - influencer/creator: Only themselves (if they have an influencer profile)
+    - influencer: Only themselves (if they have an influencer profile)
     - nonprofit/education: Empty (no direct influencer access)
     """
     user_type = user.get("user_type")
     
-    if user_type == "admin":
-        return [inf["id"] for inf in SAMPLE_INFLUENCERS]
+    if user_type == "business":
+        return user.get("managed_influencer_ids", [])
     
     if user_type == "agency":
         return user.get("managed_influencer_ids", [])
     
-    if user_type in ["brand", "business"]:
-        return user.get("managed_influencer_ids", [])
-    
-    if user_type in ["influencer", "creator"]:
+    if user_type == "influencer":
         # Return only their own influencer profile ID
         user_id = user.get("user_id")
         if user_id.startswith("inf_"):
@@ -583,16 +520,13 @@ def get_user_accessible_campaign_ids(user: dict) -> list:
     Get list of campaign IDs the user can access.
     
     Access rules:
-    - admin: All campaigns
-    - brand/business/nonprofit/education: Their own campaigns
-    - agency/influencer/creator: Campaigns they're part of
+    - business/nonprofit/education: Their own campaigns
+    - agency: Campaigns where their managed influencers are hired
+    - influencer: Campaigns they're hired for
     """
     user_type = user.get("user_type")
     
-    if user_type == "admin":
-        return [camp["id"] for camp in SAMPLE_CAMPAIGNS]
-    
-    if user_type in ["brand", "business", "nonprofit", "education"]:
+    if user_type in ["business", "nonprofit", "education"]:
         return user.get("campaign_ids", [])
     
     if user_type == "agency":
@@ -605,7 +539,7 @@ def get_user_accessible_campaign_ids(user: dict) -> list:
                 campaign_ids.append(camp["id"])
         return campaign_ids
     
-    if user_type in ["influencer", "creator"]:
+    if user_type == "influencer":
         # Campaigns they're hired for
         influencer_id = user.get("user_id")
         campaign_ids = []
@@ -622,19 +556,15 @@ def get_user_accessible_offer_ids(user: dict) -> list:
     Get list of offer IDs the user can access.
     
     Access rules:
-    - admin: All offers
-    - brand/business: Offers they sent
+    - business: Offers they sent
     - agency: Offers for their managed influencers
-    - influencer/creator: Offers they received
+    - influencer: Offers they received
     - nonprofit/education: Offers they sent
     """
     user_type = user.get("user_type")
     user_id = user.get("user_id")
     
-    if user_type == "admin":
-        return [off["id"] for off in SAMPLE_OFFERS]
-    
-    if user_type in ["brand", "business", "nonprofit", "education"]:
+    if user_type in ["business", "nonprofit", "education"]:
         # Offers they sent
         return [off["id"] for off in SAMPLE_OFFERS if off["brand_id"] == user_id]
     
@@ -643,7 +573,7 @@ def get_user_accessible_offer_ids(user: dict) -> list:
         managed_ids = set(user.get("managed_influencer_ids", []))
         return [off["id"] for off in SAMPLE_OFFERS if off["influencer_id"] in managed_ids]
     
-    if user_type in ["influencer", "creator"]:
+    if user_type == "influencer":
         # Offers they received
         influencer_id = user_id if user_id.startswith("inf_") else None
         return [off["id"] for off in SAMPLE_OFFERS if off["influencer_id"] == influencer_id]

@@ -2,10 +2,9 @@
 Analytics endpoints with role-based access control.
 
 Access by user type:
-- admin: Full access to all analytics
-- brand/business/nonprofit/education: Analytics for their own campaigns
+- business/nonprofit/education: Analytics for their own campaigns
 - agency: Analytics for campaigns their managed influencers are part of
-- influencer/creator: Analytics for campaigns they're hired in
+- influencer: Analytics for campaigns they're hired in
 """
 
 from fastapi import APIRouter, HTTPException, Query
@@ -30,10 +29,9 @@ async def get_analytics_overview(
     Get analytics overview based on user access level.
     
     **Access Control:**
-    - **admin**: Overview of all platform analytics
-    - **brand/business/nonprofit/education**: Overview of their campaigns
+    - **business/nonprofit/education**: Overview of their campaigns
     - **agency**: Overview of campaigns their influencers are in
-    - **influencer/creator**: Overview of their own performance
+    - **influencer**: Overview of their own performance
     """
     accessible_campaign_ids = get_user_accessible_campaign_ids(user)
     accessible_influencer_ids = get_user_accessible_influencer_ids(user)
@@ -68,6 +66,7 @@ async def get_analytics_overview(
     
     overview = {
         "user_type": user["user_type"],
+        "vip_tier": user.get("vip_tier", "basic"),
         "accessible_campaigns": len(accessible_campaign_ids),
         "accessible_influencers": len(accessible_influencer_ids),
         "metrics": {
@@ -85,7 +84,7 @@ async def get_analytics_overview(
     }
     
     # Add influencer-specific metrics
-    if user["user_type"] in ["influencer", "creator"]:
+    if user["user_type"] == "influencer":
         influencer_id = user.get("user_id")
         if influencer_id in accessible_influencer_ids:
             inf = next((i for i in SAMPLE_INFLUENCERS if i["id"] == influencer_id), None)
@@ -119,10 +118,9 @@ async def get_campaign_analytics(
     Get detailed analytics for a specific campaign.
     
     **Access Control:** Only accessible if:
-    - You are an admin, OR
-    - You own this campaign (brand/business/nonprofit/education), OR
+    - You own this campaign (business/nonprofit/education), OR
     - Your managed influencers are in this campaign (agency), OR
-    - You are hired in this campaign (influencer/creator)
+    - You are hired in this campaign (influencer)
     """
     accessible_ids = get_user_accessible_campaign_ids(user)
     
@@ -143,15 +141,11 @@ async def get_campaign_analytics(
     # Filter influencer performance based on user access
     accessible_influencer_ids = get_user_accessible_influencer_ids(user)
     
-    if user["user_type"] == "admin":
-        # Admin sees all influencer performance
-        filtered_performance = analytics.get("influencer_performance", [])
-    else:
-        # Others see only accessible influencers
-        filtered_performance = [
-            perf for perf in analytics.get("influencer_performance", [])
-            if perf["influencer_id"] in accessible_influencer_ids
-        ]
+    # Users see only accessible influencers
+    filtered_performance = [
+        perf for perf in analytics.get("influencer_performance", [])
+        if perf["influencer_id"] in accessible_influencer_ids
+    ]
     
     # Enrich influencer performance with names
     enriched_performance = []
@@ -188,10 +182,9 @@ async def get_influencer_analytics(
     Get analytics for a specific influencer.
     
     **Access Control:**
-    - **admin**: See analytics for any influencer
     - **agency**: See analytics for influencers you manage
-    - **brand/business**: See analytics for influencers you work with
-    - **influencer/creator**: See only your own analytics
+    - **business**: See analytics for influencers you work with
+    - **influencer**: See only your own analytics
     - **nonprofit/education**: No access
     """
     accessible_ids = get_user_accessible_influencer_ids(user)

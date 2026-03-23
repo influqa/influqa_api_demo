@@ -1,40 +1,57 @@
 # Influqa API Demo
 
-A demonstration of the **[Influqa](https://www.influqa.com)** Influencer Marketing Platform API with **Role-Based Access Control (RBAC)**. This demo showcases how different user types have access to different resources.
+A demonstration of the **[Influqa](https://www.influqa.com)** Influencer Marketing Platform API with **Role-Based Access Control (RBAC)**. 
 
-## 🎯 Key Features
+Based on the [pricing plans](https://www.influqa.com/pricing) available on the platform.
 
-### Role-Based Access Control
+## 👥 User Types
 
-The API implements strict access control based on user type:
+The platform supports **5 user types**:
+
+| User Type | Description | Can Create Campaigns |
+|-----------|-------------|---------------------|
+| ✨ **Influencer** | Creator profile | No |
+| 💼 **Business** | Companies & brands | Yes |
+| 👥 **Agency** | Talent management | No |
+| ❤️ **Nonprofit** | Non-profit organizations | Yes |
+| 🎓 **Education** | Educational institutions | Yes |
+
+## 💎 VIP Tiers
+
+Each user type can subscribe to different tiers:
+
+| Tier | Price | Description |
+|------|-------|-------------|
+| **Basic** | FREE | Limited API access |
+| **SVIP** | $4.99/mo | Enhanced features |
+| **GVIP** | $19.99/mo | Full platform access |
+
+## 🔐 Access Control
 
 | User Type | Influencers | Campaigns | Offers | Analytics |
 |-----------|-------------|-----------|--------|-----------|
-| **admin** | All | All | All | All |
-| **brand** | Partnered only | Own only | Sent only | Own campaigns |
-| **agency** | Managed only | Related | Received by managed | Related |
-| **influencer** | Own only | Hired in only | Received only | Own performance |
-| **creator** | Own only | Hired in only | Received only | Own performance |
-| **business** | Partnered only | Own only | Sent only | Own campaigns |
-| **nonprofit** | None | Own only | Sent only | Own campaigns |
-| **education** | None | Own only | Sent only | Own campaigns |
+| **Influencer** | Own only | Hired in only | Received only | Own performance |
+| **Business** | Partnered only | Own only | Sent only | Own campaigns |
+| **Agency** | Managed only | Related | Received by managed | Related |
+| **Nonprofit** | None | Own only | Sent only | Own campaigns |
+| **Education** | None | Own only | Sent only | Own campaigns |
 
 ### Access Rules
 
-1. **Agency users** can only see:
-   - Influencers they manage
-   - Offers received by their managed influencers
-   - Campaigns their influencers are hired in
+1. **Influencer users** can only see:
+   - Their own profile
+   - Campaigns they're hired in
+   - Offers they received
 
-2. **Brand/Business users** can only see:
+2. **Business users** can only see:
    - Their own campaigns
    - Influencers they work with (hired in their campaigns)
    - Offers they sent
 
-3. **Influencer/Creator users** can only see:
-   - Their own profile
-   - Campaigns they're hired in
-   - Offers they received
+3. **Agency users** can only see:
+   - Influencers they manage
+   - Offers received by their managed influencers
+   - Campaigns their influencers are hired in
 
 4. **Nonprofit/Education users** have limited access:
    - Only their own campaigns
@@ -95,15 +112,13 @@ Open [http://localhost:8000/docs](http://localhost:8000/docs) for interactive Sw
 
 Use these keys in the `X-API-Key` header:
 
-| API Key | User Type | Access Level |
-|---------|-----------|--------------|
-| `demo_key_admin` | admin | Full platform access - all influencers, campaigns, offers |
-| `demo_key_brand` | brand | Own campaigns + partnered influencers |
-| `demo_key_agency` | agency | 3 managed influencers + their offers |
-| `demo_key_influencer` | influencer | Own profile (Emma) + received offers |
-| `demo_key_creator` | creator | Own profile (Alex) + campaigns |
-| `demo_key_business` | business | Own campaigns + partnered influencers |
-| `demo_key_nonprofit` | nonprofit | Own campaign only |
+| API Key | User Type | VIP Tier | Access Level |
+|---------|-----------|----------|--------------|
+| `demo_key_influencer` | Influencer | SVIP | Own profile + 1 campaign + offers |
+| `demo_key_business` | Business | GVIP | 2 campaigns + 2 partnered influencers |
+| `demo_key_agency` | Agency | GVIP | 3 managed influencers + their offers |
+| `demo_key_nonprofit` | Nonprofit | SVIP | 1 campaign |
+| `demo_key_education` | Education | Basic | 1 campaign (draft) |
 
 ## 📝 Example Requests
 
@@ -122,13 +137,13 @@ Response:
   "user": {
     "user_id": "user_agency_001",
     "user_type": "agency",
+    "vip_tier": "gvip",
     "company_name": "Creative Talent Agency"
   },
   "access_summary": {
     "accessible_influencers": 3,
     "accessible_campaigns": 2,
-    "accessible_offers": 4,
-    "permissions": ["read:managed_influencers", "read:related_campaigns", ...]
+    "accessible_offers": 4
   }
 }
 ```
@@ -142,14 +157,14 @@ curl -X GET "http://localhost:8000/influencers" \
 
 Returns only the 3 influencers managed by this agency.
 
-### List Campaigns (Brand)
+### List Campaigns (Business)
 
 ```bash
 curl -X GET "http://localhost:8000/campaigns" \
-  -H "X-API-Key: demo_key_brand"
+  -H "X-API-Key: demo_key_business"
 ```
 
-Returns only campaigns owned by this brand.
+Returns only campaigns owned by this business.
 
 ### Access Denied Example
 
@@ -184,8 +199,7 @@ influqa_api_demo/
 │   ├── campaigns.py     # Campaign management endpoints
 │   └── analytics.py     # Analytics endpoints
 ├── examples/
-│   ├── basic_usage.py   # Basic API usage examples
-│   └── campaign_workflow.py  # Full campaign workflow
+│   └── basic_usage.py   # Basic API usage examples
 └── tests/
     └── test_api.py      # Test suite
 ```
@@ -199,10 +213,9 @@ def get_user_accessible_influencer_ids(user: dict) -> list:
     """
     Get list of influencer IDs the user can access.
     
-    - admin: All influencers
+    - business: Influencers they work with
     - agency: Influencers they manage
-    - brand/business: Influencers they work with
-    - influencer/creator: Only themselves
+    - influencer: Only themselves
     - nonprofit/education: Empty (no access)
     """
 ```
@@ -231,6 +244,7 @@ pytest tests/test_api.py -v -k "test_agency_access"
 
 - **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
 - **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+- **Pricing**: [https://www.influqa.com/pricing](https://www.influqa.com/pricing)
 
 ## 🤝 Integration
 

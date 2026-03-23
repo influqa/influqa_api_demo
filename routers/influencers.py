@@ -2,10 +2,9 @@
 Influencer discovery endpoints with role-based access control.
 
 Access by user type:
-- admin: Full access to all influencers
+- business: Access to influencers they work with (hired in their campaigns)
 - agency: Access to influencers they manage only
-- brand/business: Access to influencers they work with (hired in their campaigns)
-- influencer/creator: Access to their own profile only
+- influencer: Access to their own profile only
 - nonprofit/education: No influencer access
 """
 
@@ -38,10 +37,9 @@ async def list_influencers(
     List influencers based on user access level.
     
     **Access Control:**
-    - **admin**: See all influencers
+    - **business**: See influencers you work with
     - **agency**: See only influencers you manage
-    - **brand/business**: See influencers you work with
-    - **influencer/creator**: See only your own profile
+    - **influencer**: See only your own profile
     - **nonprofit/education**: No access (returns empty list)
     """
     accessible_ids = get_user_accessible_influencer_ids(user)
@@ -67,7 +65,7 @@ async def list_influencers(
         "success": True,
         "count": len(influencers),
         "user_type": user["user_type"],
-        "access_level": "full" if user["user_type"] == "admin" else "limited",
+        "access_level": "limited",
         "data": influencers,
     }
 
@@ -81,10 +79,9 @@ async def get_influencer(
     Get detailed information about a specific influencer.
     
     **Access Control:** Only accessible if:
-    - You are an admin, OR
     - You manage this influencer (agency), OR
-    - You work with this influencer (brand/business), OR
-    - This is your own profile (influencer/creator)
+    - You work with this influencer (business), OR
+    - This is your own profile (influencer)
     """
     accessible_ids = get_user_accessible_influencer_ids(user)
     
@@ -109,11 +106,9 @@ async def get_influencer(
     # Get offers for this influencer (if user has access)
     accessible_offer_ids = []
     user_type = user["user_type"]
-    if user_type == "admin":
-        accessible_offer_ids = [off["id"] for off in SAMPLE_OFFERS]
-    elif user_type == "agency" and influencer_id in user.get("managed_influencer_ids", []):
+    if user_type == "agency" and influencer_id in user.get("managed_influencer_ids", []):
         accessible_offer_ids = [off["id"] for off in SAMPLE_OFFERS if off["influencer_id"] == influencer_id]
-    elif user_type in ["influencer", "creator"] and user.get("user_id") == influencer_id:
+    elif user_type == "influencer" and user.get("user_id") == influencer_id:
         accessible_offer_ids = [off["id"] for off in SAMPLE_OFFERS if off["influencer_id"] == influencer_id]
     
     influencer_offers = [
@@ -149,9 +144,8 @@ async def get_influencer_offers(
     Get offers for a specific influencer.
     
     **Access Control:**
-    - **admin**: See all offers for any influencer
     - **agency**: See offers for influencers you manage
-    - **influencer/creator**: See your own offers only
+    - **influencer**: See your own offers only
     - **Others**: No access
     """
     accessible_ids = get_user_accessible_influencer_ids(user)
@@ -174,7 +168,6 @@ async def get_influencer_offers(
         enriched_offers.append({
             **offer,
             "campaign_title": campaign["title"] if campaign else "Unknown Campaign",
-            "brand_name": campaign.get("brand_id", "Unknown Brand") if campaign else "Unknown",
         })
     
     return {

@@ -1,5 +1,11 @@
 """
 Test suite for Influqa API Demo with role-based access control.
+User types from https://www.influqa.com/pricing:
+- Influencer
+- Business
+- Agency
+- Nonprofit
+- Education
 """
 
 import pytest
@@ -12,20 +18,30 @@ client = TestClient(app)
 class TestAuth:
     """Authentication tests."""
     
-    def test_verify_admin_key(self):
-        """Admin key should have full access."""
+    def test_verify_influencer_key(self):
+        """Influencer key should have limited access."""
         response = client.get(
             "/auth/verify",
-            headers={"X-API-Key": "demo_key_admin"}
+            headers={"X-API-Key": "demo_key_influencer"}
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["success"] is True
-        assert data["user"]["user_type"] == "admin"
-        assert data["access_summary"]["accessible_influencers"] == 5  # All
+        assert data["user"]["user_type"] == "influencer"
+        assert data["user"]["vip_tier"] == "svip"
+    
+    def test_verify_business_key(self):
+        """Business key should have limited access."""
+        response = client.get(
+            "/auth/verify",
+            headers={"X-API-Key": "demo_key_business"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["user"]["user_type"] == "business"
+        assert data["user"]["vip_tier"] == "gvip"
     
     def test_verify_agency_key(self):
-        """Agency key should have limited access."""
+        """Agency key should have managed influencer access."""
         response = client.get(
             "/auth/verify",
             headers={"X-API-Key": "demo_key_agency"}
@@ -33,17 +49,28 @@ class TestAuth:
         assert response.status_code == 200
         data = response.json()
         assert data["user"]["user_type"] == "agency"
-        assert data["access_summary"]["accessible_influencers"] == 3  # Managed
+        assert data["access_summary"]["accessible_influencers"] == 3
     
-    def test_verify_brand_key(self):
-        """Brand key should have limited access."""
+    def test_verify_nonprofit_key(self):
+        """Nonprofit key should have limited access."""
         response = client.get(
             "/auth/verify",
-            headers={"X-API-Key": "demo_key_brand"}
+            headers={"X-API-Key": "demo_key_nonprofit"}
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["user"]["user_type"] == "brand"
+        assert data["user"]["user_type"] == "nonprofit"
+    
+    def test_verify_education_key(self):
+        """Education key should have limited access."""
+        response = client.get(
+            "/auth/verify",
+            headers={"X-API-Key": "demo_key_education"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["user"]["user_type"] == "education"
+        assert data["user"]["vip_tier"] == "basic"
     
     def test_invalid_key(self):
         """Invalid key should return 401."""
@@ -63,22 +90,11 @@ class TestAuth:
         response = client.get("/auth/demo-keys")
         assert response.status_code == 200
         data = response.json()
-        assert len(data["demo_keys"]) == 7
+        assert len(data["demo_keys"]) == 5
 
 
 class TestInfluencerAccess:
     """Influencer endpoint access control tests."""
-    
-    def test_admin_sees_all_influencers(self):
-        """Admin should see all influencers."""
-        response = client.get(
-            "/influencers",
-            headers={"X-API-Key": "demo_key_admin"}
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["count"] == 5
-        assert data["access_level"] == "full"
     
     def test_agency_sees_managed_influencers(self):
         """Agency should see only managed influencers."""
@@ -91,15 +107,15 @@ class TestInfluencerAccess:
         assert data["count"] == 3
         assert data["user_type"] == "agency"
     
-    def test_brand_sees_partnered_influencers(self):
-        """Brand should see only partnered influencers."""
+    def test_business_sees_partnered_influencers(self):
+        """Business should see only partnered influencers."""
         response = client.get(
             "/influencers",
-            headers={"X-API-Key": "demo_key_brand"}
+            headers={"X-API-Key": "demo_key_business"}
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] == 2  # Emma and Nina
+        assert data["count"] == 2  # Emma and Marcus
     
     def test_influencer_sees_own_profile(self):
         """Influencer should see only own profile."""
@@ -116,6 +132,16 @@ class TestInfluencerAccess:
         response = client.get(
             "/influencers",
             headers={"X-API-Key": "demo_key_nonprofit"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 0
+    
+    def test_education_sees_no_influencers(self):
+        """Education should not see any influencers."""
+        response = client.get(
+            "/influencers",
+            headers={"X-API-Key": "demo_key_education"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -149,21 +175,11 @@ class TestInfluencerAccess:
 class TestCampaignAccess:
     """Campaign endpoint access control tests."""
     
-    def test_admin_sees_all_campaigns(self):
-        """Admin should see all campaigns."""
+    def test_business_sees_own_campaigns(self):
+        """Business should see only own campaigns."""
         response = client.get(
             "/campaigns",
-            headers={"X-API-Key": "demo_key_admin"}
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["count"] == 4
-    
-    def test_brand_sees_own_campaigns(self):
-        """Brand should see only own campaigns."""
-        response = client.get(
-            "/campaigns",
-            headers={"X-API-Key": "demo_key_brand"}
+            headers={"X-API-Key": "demo_key_business"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -177,11 +193,21 @@ class TestCampaignAccess:
         )
         assert response.status_code == 200
     
-    def test_business_sees_own_campaigns(self):
-        """Business should see own campaigns."""
+    def test_nonprofit_sees_own_campaigns(self):
+        """Nonprofit should see own campaigns."""
         response = client.get(
             "/campaigns",
-            headers={"X-API-Key": "demo_key_business"}
+            headers={"X-API-Key": "demo_key_nonprofit"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 1
+    
+    def test_education_sees_own_campaigns(self):
+        """Education should see own campaigns."""
+        response = client.get(
+            "/campaigns",
+            headers={"X-API-Key": "demo_key_education"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -189,17 +215,10 @@ class TestCampaignAccess:
     
     def test_campaign_detail_access_control(self):
         """Campaign detail should respect access control."""
-        # Admin can access any campaign
+        # Non-owner business cannot access
         response = client.get(
-            "/campaigns/camp_001",
-            headers={"X-API-Key": "demo_key_admin"}
-        )
-        assert response.status_code == 200
-        
-        # Non-owner brand cannot access
-        response = client.get(
-            "/campaigns/camp_003",  # Owned by business
-            headers={"X-API-Key": "demo_key_brand"}
+            "/campaigns/camp_003",  # Owned by nonprofit
+            headers={"X-API-Key": "demo_key_business"}
         )
         assert response.status_code == 403
 
@@ -207,11 +226,11 @@ class TestCampaignAccess:
 class TestCampaignCreate:
     """Campaign creation access control tests."""
     
-    def test_brand_can_create_campaign(self):
-        """Brand should be able to create campaigns."""
+    def test_business_can_create_campaign(self):
+        """Business should be able to create campaigns."""
         response = client.post(
             "/campaigns",
-            headers={"X-API-Key": "demo_key_brand"},
+            headers={"X-API-Key": "demo_key_business"},
             json={
                 "title": "Test Campaign",
                 "description": "Test",
@@ -224,6 +243,25 @@ class TestCampaignCreate:
                 "deliverables": [
                     {"type": "feed_post", "count": 1}
                 ],
+                "start_date": "2025-01-01",
+                "end_date": "2025-01-31"
+            }
+        )
+        assert response.status_code == 200
+    
+    def test_nonprofit_can_create_campaign(self):
+        """Nonprofit should be able to create campaigns."""
+        response = client.post(
+            "/campaigns",
+            headers={"X-API-Key": "demo_key_nonprofit"},
+            json={
+                "title": "Test Campaign",
+                "description": "Test",
+                "niche": "lifestyle",
+                "platforms": ["instagram"],
+                "budget": 5000,
+                "influencer_requirements": {},
+                "deliverables": [],
                 "start_date": "2025-01-01",
                 "end_date": "2025-01-31"
             }
@@ -276,7 +314,7 @@ class TestAnalytics:
         """Analytics overview should work."""
         response = client.get(
             "/analytics/overview",
-            headers={"X-API-Key": "demo_key_brand"}
+            headers={"X-API-Key": "demo_key_business"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -284,19 +322,53 @@ class TestAnalytics:
     
     def test_campaign_analytics_access_control(self):
         """Campaign analytics should respect access control."""
-        # Admin can access
-        response = client.get(
-            "/analytics/campaigns/camp_001",
-            headers={"X-API-Key": "demo_key_admin"}
-        )
-        assert response.status_code == 200
-        
         # Non-owner cannot access
         response = client.get(
             "/analytics/campaigns/camp_003",
-            headers={"X-API-Key": "demo_key_brand"}
+            headers={"X-API-Key": "demo_key_business"}
         )
         assert response.status_code == 403
+    
+    def test_influencer_analytics_access_control(self):
+        """Influencer analytics should respect access control."""
+        # Influencer can access own analytics
+        response = client.get(
+            "/analytics/influencers/inf_001",
+            headers={"X-API-Key": "demo_key_influencer"}
+        )
+        assert response.status_code == 200
+        
+        # Influencer cannot access other's analytics
+        response = client.get(
+            "/analytics/influencers/inf_002",
+            headers={"X-API-Key": "demo_key_influencer"}
+        )
+        assert response.status_code == 403
+
+
+class TestVIPTiers:
+    """VIP tier tests."""
+    
+    def test_vip_tier_returned_in_auth(self):
+        """VIP tier should be returned in auth response."""
+        response = client.get(
+            "/auth/verify",
+            headers={"X-API-Key": "demo_key_business"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "vip_tier" in data["user"]
+        assert data["user"]["vip_tier"] == "gvip"
+    
+    def test_vip_tier_in_analytics(self):
+        """VIP tier should be shown in analytics."""
+        response = client.get(
+            "/analytics/overview",
+            headers={"X-API-Key": "demo_key_influencer"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "vip_tier" in data["data"]
 
 
 class TestRootEndpoints:
@@ -309,6 +381,7 @@ class TestRootEndpoints:
         data = response.json()
         assert data["name"] == "Influqa API Demo"
         assert "demo_keys" in data
+        assert "pricing" in data
     
     def test_health(self):
         """Health endpoint should return healthy."""

@@ -2,10 +2,9 @@
 Campaign management endpoints with role-based access control.
 
 Access by user type:
-- admin: Full access to all campaigns
-- brand/business/nonprofit/education: Access to their own campaigns only
+- business/nonprofit/education: Access to their own campaigns only
 - agency: Access to campaigns where their managed influencers are hired
-- influencer/creator: Access to campaigns they're part of
+- influencer: Access to campaigns they're part of
 """
 
 from fastapi import APIRouter, HTTPException, Query
@@ -35,10 +34,9 @@ async def list_campaigns(
     List campaigns based on user access level.
     
     **Access Control:**
-    - **admin**: See all campaigns
-    - **brand/business/nonprofit/education**: See your own campaigns only
+    - **business/nonprofit/education**: See your own campaigns only
     - **agency**: See campaigns where your managed influencers are hired
-    - **influencer/creator**: See campaigns you're hired for
+    - **influencer**: See campaigns you're hired for
     """
     accessible_ids = get_user_accessible_campaign_ids(user)
     
@@ -57,7 +55,7 @@ async def list_campaigns(
         "success": True,
         "count": len(campaigns),
         "user_type": user["user_type"],
-        "access_level": "full" if user["user_type"] == "admin" else "limited",
+        "access_level": "limited",
         "data": campaigns,
     }
 
@@ -71,10 +69,9 @@ async def get_campaign(
     Get detailed information about a specific campaign.
     
     **Access Control:** Only accessible if:
-    - You are an admin, OR
-    - You own this campaign (brand/business/nonprofit/education), OR
+    - You own this campaign (business/nonprofit/education), OR
     - Your managed influencers are in this campaign (agency), OR
-    - You are hired in this campaign (influencer/creator)
+    - You are hired in this campaign (influencer)
     """
     accessible_ids = get_user_accessible_campaign_ids(user)
     
@@ -95,7 +92,7 @@ async def get_campaign(
         inf = next((i for i in SAMPLE_INFLUENCERS if i["id"] == inf_id), None)
         if inf:
             # Only show full details if user has access to this influencer
-            if inf_id in accessible_influencer_ids or user["user_type"] == "admin":
+            if inf_id in accessible_influencer_ids:
                 hired_influencers.append({
                     "id": inf["id"],
                     "username": inf["username"],
@@ -135,13 +132,13 @@ async def create_campaign(
     Create a new campaign.
     
     **Access Control:**
-    - **admin, brand, business, nonprofit, education**: Can create campaigns
-    - **agency, influencer, creator**: Cannot create campaigns
+    - **business, nonprofit, education**: Can create campaigns
+    - **agency, influencer**: Cannot create campaigns
     """
-    if user["user_type"] not in ["admin", "brand", "business", "nonprofit", "education"]:
+    if user["user_type"] not in ["business", "nonprofit", "education"]:
         raise HTTPException(
             status_code=403,
-            detail="Access denied. Only brands, businesses, and organizations can create campaigns.",
+            detail="Access denied. Only businesses and organizations can create campaigns.",
         )
     
     # In a real app, this would save to database
@@ -183,11 +180,10 @@ async def update_campaign_status(
     Update campaign status.
     
     **Access Control:**
-    - **admin**: Can update any campaign
-    - **brand/business/nonprofit/education**: Can update their own campaigns only
-    - **agency/influencer/creator**: Cannot update campaign status
+    - **business/nonprofit/education**: Can update their own campaigns only
+    - **agency/influencer**: Cannot update campaign status
     """
-    if user["user_type"] in ["agency", "influencer", "creator"]:
+    if user["user_type"] in ["agency", "influencer"]:
         raise HTTPException(
             status_code=403,
             detail="Access denied. You cannot update campaign status.",
@@ -197,8 +193,8 @@ async def update_campaign_status(
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
     
-    # Check ownership (unless admin)
-    if user["user_type"] != "admin" and campaign["brand_id"] != user["user_id"]:
+    # Check ownership
+    if campaign["brand_id"] != user["user_id"]:
         raise HTTPException(
             status_code=403,
             detail="Access denied. You can only update your own campaigns.",
@@ -229,11 +225,10 @@ async def delete_campaign(
     Delete a campaign.
     
     **Access Control:**
-    - **admin**: Can delete any campaign
-    - **brand/business/nonprofit/education**: Can delete their own campaigns only
-    - **agency/influencer/creator**: Cannot delete campaigns
+    - **business/nonprofit/education**: Can delete their own campaigns only
+    - **agency/influencer**: Cannot delete campaigns
     """
-    if user["user_type"] in ["agency", "influencer", "creator"]:
+    if user["user_type"] in ["agency", "influencer"]:
         raise HTTPException(
             status_code=403,
             detail="Access denied. You cannot delete campaigns.",
@@ -243,8 +238,8 @@ async def delete_campaign(
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
     
-    # Check ownership (unless admin)
-    if user["user_type"] != "admin" and campaign["brand_id"] != user["user_id"]:
+    # Check ownership
+    if campaign["brand_id"] != user["user_id"]:
         raise HTTPException(
             status_code=403,
             detail="Access denied. You can only delete your own campaigns.",
